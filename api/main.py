@@ -110,7 +110,7 @@ async def run_job(job_id: str, workflow: dict, image_path: str = None):
                         # Determine if image or video based on extension
                         ext = Path(filename).suffix.lower()
                         if ext in [".png", ".jpg", ".jpeg", ".webp"]:
-                            url = f"https://t6pgge1y1kl2qt-8888.proxy.runpod.net/files/ComfyUI/output/{subfolder}/{filename}" if subfolder else f"https://t6pgge1y1kl2qt-8888.proxy.runpod.net/files/ComfyUI/output/{filename}"
+                            url = f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/image/{filename}"
                         else:
                             url = f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/video/{filename}"
                         jobs[job_id] = {"status": "completed", "url": url, "filename": filename}
@@ -548,3 +548,14 @@ async def wan_text_to_image(req: WanT2IRequest, background_tasks: BackgroundTask
         "type": "image",
         "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
     }
+
+@app.get("/image/{filename}")
+async def serve_image(filename: str):
+    """Serve generated image files."""
+    for path in [
+        OUTPUT_DIR / "images" / filename,
+        OUTPUT_DIR / filename
+    ]:
+        if path.exists():
+            return FileResponse(str(path), media_type="image/png", filename=filename)
+    raise HTTPException(404, f"Image not found: {filename}")
