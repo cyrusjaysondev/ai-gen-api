@@ -1,4 +1,5 @@
 import uuid, json, httpx, os
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -68,7 +69,7 @@ def get_workflow(prompt, negative_prompt, width, height, length, seed, image_fil
     return wf
 
 async def run_job(job_id: str, workflow: dict, image_path: str = None):
-    jobs[job_id] = {"status": "processing", "workflow": workflow}
+    jobs[job_id] = {"status": "processing", "workflow": workflow, "started_at": datetime.now(timezone.utc).isoformat()}
     try:
         client_id = str(uuid.uuid4())
         async with httpx.AsyncClient() as client:
@@ -113,14 +114,14 @@ async def run_job(job_id: str, workflow: dict, image_path: str = None):
                             url = f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/image/{filename}"
                         else:
                             url = f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/video/{filename}"
-                        jobs[job_id] = {"status": "completed", "url": url, "filename": filename}
+                        jobs[job_id] = {"status": "completed", "url": url, "filename": filename, "completed_at": datetime.now(timezone.utc).isoformat()}
                         if image_path:
                             Path(image_path).unlink(missing_ok=True)
                         return
 
         jobs[job_id] = {"status": "failed", "error": "No output found"}
     except Exception as e:
-        jobs[job_id] = {"status": "failed", "error": str(e)}
+        jobs[job_id] = {"status": "failed", "error": str(e), "failed_at": datetime.now(timezone.utc).isoformat()}
 
 @app.get("/health")
 async def health():
@@ -150,7 +151,7 @@ async def text_to_video(req: T2VRequest, background_tasks: BackgroundTasks):
     prompt = f"high quality, sharp, cinematic, 4k, smooth motion, professional video. {req.prompt}" if req.enhance_prompt else req.prompt
     workflow = get_workflow(prompt, req.negative_prompt, req.width, req.height, length, seed, cfg=cfg, steps=steps, audio=req.audio, use_lora=use_lora)
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "queued"}
+    jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow)
     return {"job_id": job_id, "status": "queued", "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"}
 
@@ -171,7 +172,7 @@ async def image_to_video(
     Path(image_path).write_bytes(await file.read())
     workflow = get_workflow(prompt, negative_prompt, width, height, length, seed, image_filename, cfg=cfg, steps=steps, audio=audio)
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "queued"}
+    jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow, image_path)
     return {"job_id": job_id, "status": "queued", "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"}
 
@@ -432,7 +433,7 @@ async def wan_text_to_video(req: WanT2VRequest, background_tasks: BackgroundTask
         seed, req.steps, req.cfg
     )
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "queued"}
+    jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow)
     return {
         "job_id": job_id,
@@ -539,7 +540,7 @@ async def wan_text_to_image(req: WanT2IRequest, background_tasks: BackgroundTask
         seed, req.steps, req.cfg
     )
     job_id = str(uuid.uuid4())
-    jobs[job_id] = {"status": "queued"}
+    jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow)
     return {
         "job_id": job_id,
@@ -559,3 +560,267 @@ async def serve_image(filename: str):
         if path.exists():
             return FileResponse(str(path), media_type="image/png", filename=filename)
     raise HTTPException(404, f"Image not found: {filename}")
+
+@app.post("/face-swap")
+async def face_swap(
+    background_tasks: BackgroundTasks,
+    source_image: UploadFile = File(..., description="Image containing the face to use as source (user's face)"),
+    target_image: UploadFile = File(..., description="Template image where the face will be swapped into"),
+    face_restore_visibility: float = Form(1.0, description="How visible the face restoration is (0.1-1.0)"),
+    codeformer_weight: float = Form(0.5, description="CodeFormer fidelity weight (0.0-1.0). Lower = more restoration, Higher = more original"),
+    detect_gender_source: str = Form("no", description="Gender filter for source face: no, female, male"),
+    detect_gender_target: str = Form("no", description="Gender filter for target face: no, female, male"),
+    source_face_index: str = Form("0", description="Which face to use from source image (0 = first/largest face)"),
+    target_face_index: str = Form("0", description="Which face in target to replace (0 = first/largest face)")
+):
+    """
+    Swap a face from source_image into target_image.
+    - source_image: the user face photo
+    - target_image: the template image to swap into
+    Returns a completed image with the swapped face.
+    """
+    seed = uuid.uuid4().int % 2**32
+
+    # Save both uploaded images
+    source_filename = f"reactor_source_{uuid.uuid4().hex}.png"
+    target_filename = f"reactor_target_{uuid.uuid4().hex}.png"
+    source_path = str(Path("/workspace/ComfyUI/input") / source_filename)
+    target_path = str(Path("/workspace/ComfyUI/input") / target_filename)
+
+    Path(source_path).write_bytes(await source_image.read())
+    Path(target_path).write_bytes(await target_image.read())
+
+    workflow = {
+        "1": {
+            "class_type": "LoadImage",
+            "inputs": {"image": target_filename}
+        },
+        "2": {
+            "class_type": "LoadImage",
+            "inputs": {"image": source_filename}
+        },
+        "3": {
+            "class_type": "ReActorFaceSwap",
+            "inputs": {
+                "enabled": True,
+                "input_image": ["1", 0],
+                "source_image": ["2", 0],
+                "swap_model": "inswapper_128.onnx",
+                "facedetection": "retinaface_resnet50",
+                "face_restore_model": "GFPGANv1.4.pth",
+                "face_restore_visibility": face_restore_visibility,
+                "codeformer_weight": codeformer_weight,
+                "detect_gender_input": detect_gender_target,
+                "detect_gender_source": detect_gender_source,
+                "input_faces_index": target_face_index,
+                "source_faces_index": source_face_index,
+                "console_log_level": 1
+            }
+        },
+        "4": {
+            "class_type": "SaveImage",
+            "inputs": {
+                "images": ["3", 0],
+                "filename_prefix": f"images/faceswap_{seed}"
+            }
+        }
+    }
+
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
+    background_tasks.add_task(run_job, job_id, workflow, source_path)
+    # Also cleanup target after job
+    background_tasks.add_task(lambda: Path(target_path).unlink(missing_ok=True))
+
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "type": "image",
+        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+    }
+
+
+# ─────────────────────────────────────────────
+# Face Swap + Animate (Chained Workflow)
+# ─────────────────────────────────────────────
+
+@app.post("/face-swap/animate")
+async def face_swap_animate(
+    background_tasks: BackgroundTasks,
+    source_image: UploadFile = File(..., description="User face photo"),
+    target_image: UploadFile = File(..., description="Template image to swap face into"),
+    prompt: str = Form(..., description="Motion description for the animation"),
+    model: str = Form("ltx", description="Animation model: ltx or wan"),
+    negative_prompt: str = Form("worst quality, low quality, blurry, distorted, inconsistent motion, jittery, flickering, ghosting, deformed, bad anatomy, watermark"),
+    width: int = Form(544, description="Output video width in pixels. Portrait: 544, Landscape: 960"),
+    height: int = Form(960, description="Output video height in pixels. Portrait: 960, Landscape: 544"),
+    seconds: int = Form(5, description="Video duration in seconds (1-10)"),
+    seed: int = Form(-1, description="Random seed. -1 = random each time. Use same seed to reproduce results"),
+    steps: int = Form(20, description="Inference steps. LTX: 8-30 recommended. Wan: 20-50 recommended. More = better quality but slower"),
+    cfg: float = Form(1.5, description="CFG scale. LTX: keep 1.0-2.0. Wan: use 4.0-7.0. Controls how closely model follows the prompt"),
+    audio: bool = Form(True, description="Generate audio alongside video. LTX only, ignored for Wan"),
+    quality: str = Form("balanced", description="LTX quality preset: fast (8 steps), balanced (20 steps), high (30 steps). Overrides steps if set. Wan ignores this"),
+    face_restore_visibility: float = Form(1.0, description="Face restoration strength after swap. 1.0 = full restoration, 0.1 = minimal"),
+    codeformer_weight: float = Form(0.5, description="Face fidelity vs restoration balance. 0.0 = max restoration, 1.0 = max fidelity to original face"),
+    detect_gender_source: str = Form("no", description="Filter source face by gender: no, female, male. Useful when source image has multiple people"),
+    detect_gender_target: str = Form("no", description="Filter target face by gender: no, female, male"),
+    source_face_index: str = Form("0", description="Which face to use from source image. 0 = first/largest face"),
+    target_face_index: str = Form("0", description="Which face in template to replace. 0 = first/largest face"),
+):
+    seed = seed if seed != -1 else uuid.uuid4().int % 2**32
+
+    # Apply quality preset for LTX
+    # If quality is set AND steps is still default (20), use preset
+    # If user explicitly sets steps, use their value (custom mode)
+    if model == "ltx":
+        if quality == "fast" and steps == 20:
+            steps, cfg_val, use_lora = 8, 1.0, True
+        elif quality == "balanced" and steps == 20:
+            steps, cfg_val, use_lora = 20, 1.0, True
+        elif quality == "high" and steps == 20:
+            steps, cfg_val, use_lora = 30, 1.0, False
+        else:
+            # User set steps manually — use their value
+            cfg_val = cfg
+            use_lora = False if steps > 25 else True
+    else:
+        # Wan — use steps as-is, default cfg to 6.0 if user didn't change from LTX default
+        cfg_val = cfg if cfg != 1.5 else 6.0
+        use_lora = True
+
+    # Save both images
+    source_filename = f"reactor_source_{uuid.uuid4().hex}.png"
+    target_filename = f"reactor_target_{uuid.uuid4().hex}.png"
+    source_path = str(Path("/workspace/ComfyUI/input") / source_filename)
+    target_path = str(Path("/workspace/ComfyUI/input") / target_filename)
+    Path(source_path).write_bytes(await source_image.read())
+    Path(target_path).write_bytes(await target_image.read())
+
+    if model == "wan":
+        num_frames = ((seconds * 24 - 1) // 4) * 4 + 1
+        workflow = {
+            # Load images
+            "1": {"class_type": "LoadImage", "inputs": {"image": target_filename}},
+            "2": {"class_type": "LoadImage", "inputs": {"image": source_filename}},
+            # Face swap
+            "3": {
+                "class_type": "ReActorFaceSwap",
+                "inputs": {
+                    "enabled": True,
+                    "input_image": ["1", 0],
+                    "source_image": ["2", 0],
+                    "swap_model": "inswapper_128.onnx",
+                    "facedetection": "retinaface_resnet50",
+                    "face_restore_model": "GFPGANv1.4.pth",
+                    "face_restore_visibility": face_restore_visibility,
+                    "codeformer_weight": codeformer_weight,
+                    "detect_gender_input": detect_gender_target,
+                    "detect_gender_source": detect_gender_source,
+                    "input_faces_index": target_face_index,
+                    "source_faces_index": source_face_index,
+                    "console_log_level": 1
+                }
+            },
+            # Wan 2.2 I2V pipeline
+            "4": {"class_type": "WanVideoModelLoader", "inputs": {"model": "wan2.2_ti2v_5B_fp16.safetensors", "base_precision": "bf16", "quantization": "disabled", "load_device": "offload_device"}},
+            "5": {"class_type": "WanVideoVAELoader", "inputs": {"model_name": "wan2.2_vae.safetensors", "precision": "bf16"}},
+            "6": {"class_type": "LoadWanVideoT5TextEncoder", "inputs": {"model_name": "umt5-xxl-enc-bf16.safetensors", "precision": "bf16", "load_device": "offload_device", "quantization": "disabled"}},
+            "7": {"class_type": "WanVideoTextEncode", "inputs": {"positive_prompt": prompt, "negative_prompt": negative_prompt, "t5": ["6", 0], "force_offload": True}},
+            "8": {
+                "class_type": "WanVideoImageToVideoEncode",
+                "inputs": {
+                    "width": width,
+                    "height": height,
+                    "num_frames": num_frames,
+                    "noise_aug_strength": 0.0,
+                    "start_latent_strength": 1.0,
+                    "end_latent_strength": 1.0,
+                    "force_offload": True,
+                    "vae": ["5", 0],
+                    "start_image": ["3", 0]
+                }
+            },
+            "9": {
+                "class_type": "WanVideoSampler",
+                "inputs": {
+                    "model": ["4", 0],
+                    "image_embeds": ["8", 0],
+                    "text_embeds": ["7", 0],
+                    "steps": steps,
+                    "cfg": cfg_val,
+                    "shift": 5.0,
+                    "seed": seed,
+                    "force_offload": True,
+                    "scheduler": "unipc",
+                    "riflex_freq_index": 0
+                }
+            },
+            "10": {"class_type": "WanVideoDecode", "inputs": {"vae": ["5", 0], "samples": ["9", 0], "enable_vae_tiling": False, "tile_x": 272, "tile_y": 272, "tile_stride_x": 144, "tile_stride_y": 128}},
+            "11": {"class_type": "VHS_VideoCombine", "inputs": {"images": ["10", 0], "frame_rate": 24, "loop_count": 0, "filename_prefix": f"video/faceswap_wan_{seed}", "format": "video/h264-mp4", "pingpong": False, "save_output": True}}
+        }
+    else:
+        # LTX I2V (default)
+        length = seconds_to_frames(seconds)
+        workflow = {
+            "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "ltx-2.3-22b-dev-fp8.safetensors"}},
+            "2": {"class_type": "LTXVAudioVAELoader", "inputs": {"ckpt_name": "ltx-2.3-22b-dev-fp8.safetensors"}},
+            "3": {"class_type": "LTXAVTextEncoderLoader", "inputs": {"text_encoder": "gemma_3_12B_it_fp4_mixed.safetensors", "ckpt_name": "ltx-2.3-22b-dev-fp8.safetensors", "device": "default"}},
+            "4": {"class_type": "LoraLoaderModelOnly", "inputs": {"lora_name": "ltx-2.3-22b-distilled-lora-384.safetensors", "strength_model": 1.0 if use_lora else 0.0, "model": ["1", 0]}},
+            "5": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["3", 0]}},
+            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": negative_prompt, "clip": ["3", 0]}},
+            "7": {"class_type": "LTXVConditioning", "inputs": {"positive": ["5", 0], "negative": ["6", 0], "frame_rate": 25.0}},
+            # Load target image for face swap
+            "20": {"class_type": "LoadImage", "inputs": {"image": target_filename}},
+            "21": {"class_type": "LoadImage", "inputs": {"image": source_filename}},
+            # Face swap
+            "22": {
+                "class_type": "ReActorFaceSwap",
+                "inputs": {
+                    "enabled": True,
+                    "input_image": ["20", 0],
+                    "source_image": ["21", 0],
+                    "swap_model": "inswapper_128.onnx",
+                    "facedetection": "retinaface_resnet50",
+                    "face_restore_model": "GFPGANv1.4.pth",
+                    "face_restore_visibility": face_restore_visibility,
+                    "codeformer_weight": codeformer_weight,
+                    "detect_gender_input": detect_gender_target,
+                    "detect_gender_source": detect_gender_source,
+                    "input_faces_index": target_face_index,
+                    "source_faces_index": source_face_index,
+                    "console_log_level": 1
+                }
+            },
+            # LTX I2V using swapped image
+            "8": {"class_type": "LTXVImgToVideo", "inputs": {
+                "positive": ["5", 0], "negative": ["6", 0],
+                "vae": ["1", 2], "image": ["22", 0],
+                "width": width, "height": height, "length": length,
+                "batch_size": 1, "strength": 1.0
+            }},
+            "9": {"class_type": "LTXVEmptyLatentAudio", "inputs": {"frames_number": length, "frame_rate": 25, "batch_size": 1, "audio_vae": ["2", 0]}},
+            "10": {"class_type": "LTXVConcatAVLatent", "inputs": {"video_latent": ["8", 2], "audio_latent": ["9", 0]}},
+            "12": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
+            "13": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler_cfg_pp"}},
+            "14": {"class_type": "LTXVScheduler", "inputs": {"steps": steps, "max_shift": 2.05, "base_shift": 0.95, "stretch": True, "terminal": 0.1, "latent": ["10", 0]}},
+            "15": {"class_type": "CFGGuider", "inputs": {"cfg": cfg_val, "model": ["4", 0], "positive": ["8", 0], "negative": ["8", 1]}},
+            "16": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["12", 0], "guider": ["15", 0], "sampler": ["13", 0], "sigmas": ["14", 0], "latent_image": ["10", 0]}},
+            "17": {"class_type": "LTXVSeparateAVLatent", "inputs": {"av_latent": ["16", 0]}},
+            "18": {"class_type": "VAEDecodeTiled", "inputs": {"samples": ["17", 0], "vae": ["1", 2], "tile_size": 512, "overlap": 64, "temporal_size": 64, "temporal_overlap": 8}},
+            "19": {"class_type": "LTXVAudioVAEDecode", "inputs": {"samples": ["17", 1], "audio_vae": ["2", 0]}},
+            "23": {"class_type": "CreateVideo", "inputs": {"images": ["18", 0], **({"audio": ["19", 0]} if audio else {}), "fps": 24.0}},
+            "24": {"class_type": "SaveVideo", "inputs": {"video": ["23", 0], "filename_prefix": f"video/faceswap_ltx_{seed}", "format": "auto", "codec": "auto"}}
+        }
+
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
+    background_tasks.add_task(run_job, job_id, workflow, source_path)
+    background_tasks.add_task(lambda: Path(target_path).unlink(missing_ok=True))
+
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "model": f"faceswap+{model}",
+        "type": "video",
+        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+    }
