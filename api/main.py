@@ -1178,6 +1178,24 @@ async def inpaint(
 # FLUX.2 Klein 9B Head/Face Swap
 # ─────────────────────────────────────────────
 
+FLUX_ASPECT_RATIOS = {
+    "1:1":   (1024, 1024),
+    "9:16":  (768, 1360),
+    "3:4":   (880, 1168),
+    "4:3":   (1168, 880),
+    "16:9":  (1360, 768),
+    "2:3":   (832, 1248),
+    "21:9":  (1680, 720),
+}
+
+DEFAULT_FLUX_PROMPT = """head_swap: Use image 1 as the base image, preserving its environment, background, camera perspective, framing, exposure, contrast, and lighting. Remove the head and hair from image 1 and seamlessly replace it with the head from image 2.
+Match the original head size, face-to-body ratio, neck thickness, shoulder alignment, and camera distance so proportions remain natural and unchanged.
+Adapt the inserted head to the lighting of image 1 by matching light direction, intensity, softness, color temperature, shadows, and highlights, with no independent relighting.
+Preserve the identity of image 2, including hair texture, eye color, nose structure, facial proportions, and skin details.
+Match the pose and expression from image 1, including head tilt, rotation, eye direction, gaze, micro-expressions, and lip position.
+Ensure seamless neck and jaw blending, consistent skin tone, realistic shadow contact, natural skin texture, and uniform sharpness.
+Photorealistic, high quality, sharp details, 4K."""
+
 @app.post("/flux/face-swap")
 async def flux_face_swap(
     background_tasks: BackgroundTasks,
@@ -1253,7 +1271,9 @@ async def flux_face_swap(
                 inputs["strength_clip"] = wvals[2] if len(wvals) > 2 else 1.0
 
         elif ntype == "CLIPTextEncode":
-            inputs["text"] = wvals[0] if wvals else ""
+            # Use custom prompt if provided, otherwise use default head swap prompt
+            final_flux_prompt = prompt if prompt else DEFAULT_FLUX_PROMPT
+            inputs["text"] = final_flux_prompt
 
         elif ntype == "FluxGuidance":
             inputs["guidance"] = wvals[0] if wvals else 4.0
@@ -1543,8 +1563,9 @@ async def flux_face_swap_animate(
         elif ntype == "FloatConstant":
             inputs["value"] = wvals[0] if wvals else 2.0
         elif "EmptyFlux2Latent" in ntype or "EmptyLatent" in ntype:
-            inputs["width"] = wvals[0] if wvals else 1008
-            inputs["height"] = wvals[1] if len(wvals) > 1 else 1024
+            ar_w, ar_h = FLUX_ASPECT_RATIOS.get(aspect_ratio, (768, 1360))
+            inputs["width"] = ar_w
+            inputs["height"] = ar_h
             inputs["batch_size"] = wvals[2] if len(wvals) > 2 else 1
         elif ntype == "ComfySwitchNode":
             inputs["switch"] = wvals[0] if wvals else True
