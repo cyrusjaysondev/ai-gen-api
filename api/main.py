@@ -35,7 +35,7 @@ async def enhance_prompt_with_ollama(prompt: str, media_type: str = "image") -> 
 app = FastAPI(title="LTX 2.3 Video API")
 COMFYUI_URL = "http://127.0.0.1:8188"
 OUTPUT_DIR = Path("/workspace/ComfyUI/output")
-PUBLIC_BASE_URL = "https://t6pgge1y1kl2qt-8888.proxy.runpod.net"
+PUBLIC_BASE_URL = "https://8mj50saxmbkhdz-8888.proxy.runpod.net"
 
 # In-memory job store
 jobs = {}
@@ -137,9 +137,9 @@ async def run_job(job_id: str, workflow: dict, image_path: str = None):
                         # Determine if image or video based on extension
                         ext = Path(filename).suffix.lower()
                         if ext in [".png", ".jpg", ".jpeg", ".webp"]:
-                            url = f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/image/{filename}"
+                            url = f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/image/{filename}"
                         else:
-                            url = f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/video/{filename}"
+                            url = f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/video/{filename}"
                         completed_at = datetime.now(timezone.utc)
                         created_at_str = jobs[job_id].get("created_at")
                         duration_seconds = None
@@ -188,7 +188,7 @@ async def text_to_video(req: T2VRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow)
-    return {"job_id": job_id, "status": "queued", "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"}
+    return {"job_id": job_id, "status": "queued", "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"}
 
 @app.post("/i2v/upload")
 async def image_to_video(
@@ -209,7 +209,7 @@ async def image_to_video(
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow, image_path)
-    return {"job_id": job_id, "status": "queued", "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"}
+    return {"job_id": job_id, "status": "queued", "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"}
 
 @app.get("/queue")
 async def get_queue():
@@ -336,7 +336,7 @@ async def retry_job(job_id: str, background_tasks: BackgroundTasks):
         "new_job_id": new_job_id,
         "original_job_id": job_id,
         "status": "queued",
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{new_job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{new_job_id}"
     }
 
 @app.get("/videos")
@@ -352,7 +352,7 @@ async def list_videos():
         videos.append({
             "filename": f.name,
             "size_mb": round(stat.st_size / 1024 / 1024, 2),
-            "url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/video/{f.name}",
+            "url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/video/{f.name}",
             "created_at": stat.st_mtime
         })
     return {"total": len(videos), "videos": videos}
@@ -474,7 +474,7 @@ async def wan_text_to_video(req: WanT2VRequest, background_tasks: BackgroundTask
         "job_id": job_id,
         "status": "queued",
         "model": "wan2.2-ti2v-5b",
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 class WanT2IRequest(BaseModel):
@@ -549,7 +549,7 @@ async def wan_text_to_image(req: WanT2IRequest, background_tasks: BackgroundTask
         "status": "queued",
         "model": "wan2.2-ti2v-5b",
         "type": "image",
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 @app.get("/image/{filename}")
@@ -639,7 +639,7 @@ async def face_swap(
         "job_id": job_id,
         "status": "queued",
         "type": "image",
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 
@@ -826,7 +826,7 @@ async def face_swap_animate(
         "status": "queued",
         "model": f"faceswap+{model}",
         "type": "video",
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 
@@ -856,6 +856,7 @@ async def head_swap(
     codeformer_weight: float = Form(0.5, description="0.0 = max restoration, 1.0 = max fidelity to source face."),
     detect_gender_source: str = Form("no", description="Filter source face by gender: no, female, male."),
     detect_gender_target: str = Form("no", description="Filter target face by gender: no, female, male."),
+    swap_model: str = Form("inswapper_128.onnx", description="Swap model: inswapper_128.onnx, hyperswap_1a_256.onnx, hyperswap_1b_256.onnx, hyperswap_1c_256.onnx"),
 ):
     seed = seed if seed != -1 else uuid.uuid4().int % 2**32
 
@@ -950,7 +951,7 @@ async def head_swap(
         "status": "queued",
         "type": "image",
         "created_at": jobs[job_id]["created_at"],
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 
@@ -1029,7 +1030,7 @@ async def image_to_image(
         "status": "queued",
         "type": "image",
         "created_at": jobs[job_id]["created_at"],
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 
@@ -1169,7 +1170,7 @@ async def inpaint(
         "status": "queued",
         "type": "image",
         "created_at": jobs[job_id]["created_at"],
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 
@@ -1177,16 +1178,6 @@ async def inpaint(
 # ─────────────────────────────────────────────
 # FLUX.2 Klein 9B Head/Face Swap
 # ─────────────────────────────────────────────
-
-FLUX_ASPECT_RATIOS = {
-    "1:1":   (1024, 1024),
-    "9:16":  (768, 1360),
-    "3:4":   (880, 1168),
-    "4:3":   (1168, 880),
-    "16:9":  (1360, 768),
-    "2:3":   (832, 1248),
-    "21:9":  (1680, 720),
-}
 
 DEFAULT_FLUX_PROMPT = """head_swap: Use image 1 as the base image, preserving its environment, background, camera perspective, framing, exposure, contrast, and lighting. Remove the head and hair from image 1 and seamlessly replace it with the head from image 2.
 Match the original head size, face-to-body ratio, neck thickness, shoulder alignment, and camera distance so proportions remain natural and unchanged.
@@ -1196,14 +1187,68 @@ Match the pose and expression from image 1, including head tilt, rotation, eye d
 Ensure seamless neck and jaw blending, consistent skin tone, realistic shadow contact, natural skin texture, and uniform sharpness.
 Photorealistic, high quality, sharp details, 4K."""
 
+def get_flux_face_swap_workflow(target_filename, face_filename, seed, prompt=None, megapixels=2.0, steps=4, cfg=1.0, guidance=4.0, lora_strength=1.0):
+    if not prompt:
+        prompt = DEFAULT_FLUX_PROMPT
+    return {
+        # Model loaders
+        "126": {"class_type": "UNETLoader", "inputs": {"unet_name": "flux-2-klein-9b.safetensors", "weight_dtype": "default"}},
+        "102": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
+        "146": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_8b_fp8mixed.safetensors", "type": "flux2", "device": "default"}},
+        # LoRA
+        "161": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["126", 0], "lora_name": "bfs_head_v1_flux-klein_9b_step3500_rank128.safetensors", "strength_model": lora_strength}},
+        # Text encode
+        "107": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["146", 0]}},
+        # Load images: 151=target body, 121=face reference
+        "151": {"class_type": "LoadImage", "inputs": {"image": target_filename}},
+        "121": {"class_type": "LoadImage", "inputs": {"image": face_filename}},
+        # Scale target to megapixels → VAEEncode → VAEDecode → GetImageSize
+        "115": {"class_type": "ImageScaleToTotalPixels", "inputs": {"image": ["151", 0], "upscale_method": "lanczos", "megapixels": megapixels, "resolution_steps": 1}},
+        "125": {"class_type": "VAEEncode", "inputs": {"pixels": ["115", 0], "vae": ["102", 0]}},
+        "147": {"class_type": "VAEDecode", "inputs": {"samples": ["125", 0], "vae": ["102", 0]}},
+        "148": {"class_type": "GetImageSize", "inputs": {"image": ["147", 0]}},
+        # Scale original target to match VAE-rounded dimensions
+        "149": {"class_type": "ImageScale", "inputs": {"image": ["151", 0], "upscale_method": "lanczos", "width": ["148", 0], "height": ["148", 1], "crop": "center"}},
+        # VAEEncode target body (for reference latent)
+        "150": {"class_type": "VAEEncode", "inputs": {"pixels": ["149", 0], "vae": ["102", 0]}},
+        # Scale face to megapixels → VAEEncode
+        "120": {"class_type": "ImageScaleToTotalPixels", "inputs": {"image": ["121", 0], "upscale_method": "lanczos", "megapixels": megapixels, "resolution_steps": 1}},
+        "119": {"class_type": "VAEEncode", "inputs": {"pixels": ["120", 0], "vae": ["102", 0]}},
+        # Reference latent chain: body → face
+        "112": {"class_type": "ReferenceLatent", "inputs": {"conditioning": ["107", 0], "latent": ["150", 0]}},
+        "118": {"class_type": "ReferenceLatent", "inputs": {"conditioning": ["112", 0], "latent": ["119", 0]}},
+        # Conditioning: positive with guidance, negative zeroed out
+        "136": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["107", 0]}},
+        "100": {"class_type": "FluxGuidance", "inputs": {"conditioning": ["118", 0], "guidance": guidance}},
+        # Empty latent at target dimensions (non-inpainting mode)
+        "163": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": ["148", 0], "height": ["148", 1], "batch_size": 1}},
+        # LanPaint sampler
+        "156": {"class_type": "LanPaint_KSampler", "inputs": {
+            "model": ["161", 0], "positive": ["100", 0], "negative": ["136", 0],
+            "latent_image": ["163", 0], "seed": seed,
+            "control_after_generate": "randomize", "steps": steps, "cfg": cfg,
+            "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0,
+            "LanPaint_NumSteps": 2, "LanPaint_PromptMode": "Image First",
+            "Inpainting_mode": "\ud83d\uddbc\ufe0f Image Inpainting",
+            "LanPaint_Info": "LanPaint KSampler"
+        }},
+        # Decode and save
+        "104": {"class_type": "VAEDecode", "inputs": {"samples": ["156", 0], "vae": ["102", 0]}},
+        "9": {"class_type": "SaveImage", "inputs": {"images": ["104", 0], "filename_prefix": f"images/flux_swap_{seed}"}}
+    }
+
 @app.post("/flux/face-swap")
 async def flux_face_swap(
     background_tasks: BackgroundTasks,
     target_image: UploadFile = File(..., description="Base/template image — body stays, head gets replaced"),
     face_image: UploadFile = File(..., description="Source face — identity to transfer"),
     seed: int = Form(-1, description="Random seed. -1 = random."),
+    megapixels: float = Form(2.0, description="Image resolution in megapixels (1.0-2.0)"),
+    steps: int = Form(4, description="Inference steps (4 recommended for Klein)"),
+    cfg: float = Form(1.0, description="CFG scale (1.0 recommended for Klein)"),
+    guidance: float = Form(4.0, description="FLUX guidance strength (2.0-6.0)"),
+    lora_strength: float = Form(1.0, description="LoRA strength (0.0-1.5)"),
 ):
-    import copy
     seed = seed if seed != -1 else uuid.uuid4().int % 2**32
 
     target_filename = f"flux_target_{uuid.uuid4().hex}.png"
@@ -1213,145 +1258,15 @@ async def flux_face_swap(
     Path(target_path).write_bytes(await target_image.read())
     Path(face_path).write_bytes(await face_image.read())
 
-    # Load raw workflow and convert to API format
-    with open("/workspace/flux2_klein_face_swap.json") as f:
-        wf_data = json.load(f)
-
-    # Build links lookup: link_id -> [src_node_id, src_slot]
-    links = {}
-    for link in wf_data.get("links", []):
-        # link format: [link_id, src_node, src_slot, dst_node, dst_slot, type]
-        links[link[0]] = [str(link[1]), link[2]]
-
-    # Build prompt
-    prompt = {}
-    for node in wf_data["nodes"]:
-        nid = str(node["id"])
-        ntype = node["type"]
-        wvals = node.get("widgets_values", [])
-        inputs = {}
-
-        # Add linked inputs
-        for inp in node.get("inputs", []):
-            link_id = inp.get("link")
-            if link_id is not None and link_id in links:
-                inputs[inp["name"]] = links[link_id]
-
-        # Add widget values by node type
-        if ntype == "LoadImage":
-            if node["id"] == 151:  # target body image
-                inputs["image"] = target_filename
-                inputs["upload"] = "image"
-            elif node["id"] == 121:  # face reference
-                inputs["image"] = face_filename
-                inputs["upload"] = "image"
-            else:
-                inputs["image"] = face_filename  # use face as fallback for extra slots
-                inputs["upload"] = "image"
-
-        elif ntype == "SaveImage":
-            inputs["filename_prefix"] = f"images/flux_swap_{seed}"
-
-        elif ntype == "UNETLoader":
-            inputs["unet_name"] = wvals[0] if len(wvals) > 0 else ""
-            inputs["weight_dtype"] = wvals[1] if len(wvals) > 1 else "default"
-
-        elif ntype == "CLIPLoader":
-            inputs["clip_name"] = wvals[0] if len(wvals) > 0 else ""
-            inputs["type"] = wvals[1] if len(wvals) > 1 else "flux2"
-            inputs["device"] = wvals[2] if len(wvals) > 2 else "default"
-
-        elif ntype == "VAELoader":
-            inputs["vae_name"] = wvals[0] if wvals else ""
-
-        elif ntype == "LoraLoader" or ntype == "LoraLoaderModelOnly":
-            inputs["lora_name"] = wvals[0] if len(wvals) > 0 else ""
-            inputs["strength_model"] = wvals[1] if len(wvals) > 1 else 1.0
-            if ntype == "LoraLoader":
-                inputs["strength_clip"] = wvals[2] if len(wvals) > 2 else 1.0
-
-        elif ntype == "CLIPTextEncode":
-            # Use custom prompt if provided, otherwise use default head swap prompt
-            final_flux_prompt = prompt if prompt else DEFAULT_FLUX_PROMPT
-            inputs["text"] = final_flux_prompt
-
-        elif ntype == "FluxGuidance":
-            inputs["guidance"] = wvals[0] if wvals else 4.0
-
-        elif ntype == "LanPaint_KSampler":
-            inputs["seed"] = seed
-            inputs["control_after_generate"] = wvals[1] if len(wvals) > 1 else "randomize"
-            inputs["steps"] = steps
-            inputs["cfg"] = cfg
-            inputs["sampler_name"] = wvals[4] if len(wvals) > 4 else "euler"
-            inputs["scheduler"] = wvals[5] if len(wvals) > 5 else "simple"
-            inputs["denoise"] = wvals[6] if len(wvals) > 6 else 1.0
-            inputs["LanPaint_NumSteps"] = wvals[7] if len(wvals) > 7 else 2
-            inputs["LanPaint_PromptMode"] = wvals[8] if len(wvals) > 8 else "Image First"
-            inputs["Inpainting_mode"] = "🖼️ Image Inpainting"
-            inputs["LanPaint_Info"] = wvals[9] if len(wvals) > 9 else "LanPaint KSampler"
-
-        elif ntype == "ImageScaleToTotalPixels":
-            inputs["upscale_method"] = wvals[0] if len(wvals) > 0 else "lanczos"
-            inputs["megapixels"] = wvals[1] if len(wvals) > 1 else 1.0
-            inputs["resolution_steps"] = wvals[2] if len(wvals) > 2 else 1
-
-        elif ntype == "ImageScale":
-            inputs["upscale_method"] = wvals[0] if len(wvals) > 0 else "lanczos"
-            inputs["width"] = wvals[1] if len(wvals) > 1 else 1024
-            inputs["height"] = wvals[2] if len(wvals) > 2 else 1024
-            inputs["crop"] = wvals[3] if len(wvals) > 3 else "center"
-
-        elif ntype == "ResizeImageMaskNode":
-            inputs["resize_type"] = wvals[0] if len(wvals) > 0 else "scale dimensions"
-            inputs["width"] = wvals[1] if len(wvals) > 1 else 512
-            inputs["height"] = wvals[2] if len(wvals) > 2 else 512
-            inputs["crop"] = wvals[3] if len(wvals) > 3 else "center"
-            inputs["scale_method"] = wvals[4] if len(wvals) > 4 else "bicubic"
-            inputs["resize_type.width"] = wvals[1] if len(wvals) > 1 else 512
-            inputs["resize_type.height"] = wvals[2] if len(wvals) > 2 else 512
-            inputs["resize_type.crop"] = wvals[3] if len(wvals) > 3 else "center"
-            inputs["resize_type.scale_method"] = wvals[4] if len(wvals) > 4 else "bicubic"
-
-        elif ntype == "FloatConstant":
-            inputs["value"] = wvals[0] if wvals else 2.0
-
-        elif ntype == "ConditioningZeroOut":
-            pass  # only linked inputs
-
-        elif "EmptyFlux2Latent" in ntype or "EmptyLatent" in ntype:
-            inputs["width"] = wvals[0] if len(wvals) > 0 else 1008
-            inputs["height"] = wvals[1] if len(wvals) > 1 else 1024
-            inputs["batch_size"] = wvals[2] if len(wvals) > 2 else 1
-
-        elif ntype == "SetLatentNoiseMask":
-            pass  # only linked inputs
-
-        elif ntype == "VAEEncode":
-            pass  # only linked inputs
-
-        elif ntype == "VAEDecode":
-            pass  # only linked inputs
-
-        elif ntype == "ReferenceLatent":
-            pass  # only linked inputs
-
-        elif ntype == "ComfySwitchNode":
-            inputs["switch"] = wvals[0] if wvals else True
-
-        elif ntype == "PreviewMask":
-            pass  # preview only
-
-        else:
-            # Generic: map widget values positionally
-            for i, wv in enumerate(wvals):
-                inputs[f"widget_{i}"] = wv
-
-        prompt[nid] = {"class_type": ntype, "inputs": inputs}
+    workflow = get_flux_face_swap_workflow(
+        target_filename, face_filename, seed,
+        megapixels=megapixels, steps=steps, cfg=cfg,
+        guidance=guidance, lora_strength=lora_strength
+    )
 
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
-    background_tasks.add_task(run_job, job_id, prompt, target_path)
+    background_tasks.add_task(run_job, job_id, workflow, target_path)
     background_tasks.add_task(lambda: Path(face_path).unlink(missing_ok=True))
 
     return {
@@ -1360,96 +1275,70 @@ async def flux_face_swap(
         "type": "image",
         "model": "flux2-klein-9b",
         "created_at": jobs[job_id]["created_at"],
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
 
 # ─────────────────────────────────────────────
 # FLUX.2 Klein Face Swap + Animate (Chained)
 # ─────────────────────────────────────────────
 
-async def run_flux_then_animate(job_id: str, flux_prompt: dict, animate_workflow_fn, target_path: str, face_path: str):
+async def run_flux_then_animate(job_id: str, flux_workflow: dict, animate_workflow_fn, target_path: str, face_path: str):
     """Run FLUX face swap, then feed result image into animation workflow."""
-    import asyncio, glob
-
-    # Step 1: Run FLUX face swap
     jobs[job_id] = {**jobs.get(job_id, {}), "status": "processing", "step": "1/2 — FLUX head swap", "started_at": datetime.now(timezone.utc).isoformat()}
 
     try:
-        async with httpx.AsyncClient(timeout=600) as client:
-            r = await client.post("http://localhost:8188/prompt", json={"prompt": flux_prompt})
-            r.raise_for_status()
-            prompt_id = r.json()["prompt_id"]
+        client_id = str(uuid.uuid4())
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(f"{COMFYUI_URL}/prompt", json={"prompt": flux_workflow, "client_id": client_id})
+            if resp.status_code != 200:
+                raise Exception(f"FLUX submit failed: {resp.text}")
+            prompt_id = resp.json()["prompt_id"]
 
-        # Poll until FLUX job done
+        ws_url = f"ws://127.0.0.1:8188/ws?clientId={client_id}"
+        async with websockets.connect(ws_url) as ws:
+            while True:
+                msg = json.loads(await ws.recv())
+                if msg.get("type") == "executing":
+                    data = msg.get("data", {})
+                    if data.get("node") is None and data.get("prompt_id") == prompt_id:
+                        break
+
+        # Find output image
+        async with httpx.AsyncClient() as client:
+            history = await client.get(f"{COMFYUI_URL}/history/{prompt_id}")
+            job_data = history.json().get(prompt_id, {})
+            status = job_data.get("status", {}).get("status_str", "")
+            if status == "error":
+                messages = job_data.get("status", {}).get("messages", [])
+                for m in messages:
+                    if m[0] == "execution_error":
+                        raise Exception(m[1].get("exception_message", "FLUX execution error"))
+            outputs = job_data.get("outputs", {})
+
         output_image_path = None
-        for _ in range(400):
-            await asyncio.sleep(3)
-            async with httpx.AsyncClient(timeout=30) as client:
-                hist = await client.get(f"http://localhost:8188/history/{prompt_id}")
-                data = hist.json()
-            if prompt_id in data:
-                entry = data[prompt_id]
-                if entry.get("status", {}).get("completed"):
-                    outputs = entry.get("outputs", {})
-                    for node_out in outputs.values():
-                        for img in node_out.get("images", []):
-                            fname = img.get("filename", "")
-                            subfolder = img.get("subfolder", "")
-                            fpath = Path("/workspace/ComfyUI/output") / subfolder / fname
-                            if fpath.exists():
-                                output_image_path = str(fpath)
+        for node_output in outputs.values():
+            if "images" in node_output:
+                item = node_output["images"][0]
+                fname = item["filename"]
+                subfolder = item.get("subfolder", "")
+                fpath = OUTPUT_DIR / subfolder / fname if subfolder else OUTPUT_DIR / fname
+                if fpath.exists():
+                    output_image_path = str(fpath)
                     break
-                if entry.get("status", {}).get("status_str") == "error":
-                    raise Exception("FLUX face swap failed")
 
         if not output_image_path:
             raise Exception("FLUX face swap produced no output image")
 
-        # Step 2: Build animation workflow using the swapped image
+        # Step 2: Animate
         jobs[job_id] = {**jobs.get(job_id, {}), "step": "2/2 — Animating"}
 
-        # Copy swapped image to ComfyUI input
+        import shutil
         swapped_filename = f"flux_swapped_{job_id[:8]}.png"
         swapped_path = f"/workspace/ComfyUI/input/{swapped_filename}"
-        import shutil
         shutil.copy2(output_image_path, swapped_path)
 
-        # Get animation workflow with the swapped image
         anim_workflow = animate_workflow_fn(swapped_filename)
-
-        # Run animation
-        async with httpx.AsyncClient(timeout=600) as client:
-            r = await client.post("http://localhost:8188/prompt", json={"prompt": anim_workflow})
-            r.raise_for_status()
-            anim_prompt_id = r.json()["prompt_id"]
-
-        # Poll animation
-        for _ in range(600):
-            await asyncio.sleep(3)
-            async with httpx.AsyncClient(timeout=30) as client:
-                hist = await client.get(f"http://localhost:8188/history/{anim_prompt_id}")
-                data = hist.json()
-            if anim_prompt_id in data:
-                entry = data[anim_prompt_id]
-                if entry.get("status", {}).get("completed"):
-                    outputs = entry.get("outputs", {})
-                    for node_out in outputs.values():
-                        for vid in node_out.get("gifs", []) + node_out.get("videos", []):
-                            fname = vid.get("filename", "")
-                            subfolder = vid.get("subfolder", "")
-                            fpath = Path("/workspace/ComfyUI/output") / subfolder / fname
-                            if fpath.exists():
-                                completed_at = datetime.now(timezone.utc)
-                                started = datetime.fromisoformat(jobs[job_id].get("started_at", completed_at.isoformat()))
-                                duration = round((completed_at - started).total_seconds(), 1)
-                                url = f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/video/{subfolder}/{fname}" if subfolder else f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/video/{fname}"
-                                jobs[job_id] = {"status": "completed", "url": url, "filename": str(fpath.name), "completed_at": completed_at.isoformat(), "duration_seconds": duration}
-                                return
-                    break
-                if entry.get("status", {}).get("status_str") == "error":
-                    raise Exception("Animation failed")
-
-        raise Exception("Animation timed out")
+        await run_job(job_id, anim_workflow)
 
     except Exception as e:
         jobs[job_id] = {**jobs.get(job_id, {}), "status": "failed", "error": str(e), "failed_at": datetime.now(timezone.utc).isoformat()}
@@ -1486,100 +1375,19 @@ async def flux_face_swap_animate(
     Path(target_path).write_bytes(await target_image.read())
     Path(face_path).write_bytes(await face_image.read())
 
-    # Build FLUX swap prompt (same as /flux/face-swap)
-    with open("/workspace/flux2_klein_face_swap.json") as f:
-        wf_data = json.load(f)
-
-    links = {}
-    for link in wf_data.get("links", []):
-        links[link[0]] = [str(link[1]), link[2]]
-
-    flux_prompt = {}
-    for node in wf_data["nodes"]:
-        nid = str(node["id"])
-        ntype = node["type"]
-        wvals = node.get("widgets_values", [])
-        inputs = {}
-        for inp in node.get("inputs", []):
-            link_id = inp.get("link")
-            if link_id is not None and link_id in links:
-                inputs[inp["name"]] = links[link_id]
-        if ntype == "LoadImage":
-            if node["id"] == 151:
-                inputs["image"] = target_filename
-                inputs["upload"] = "image"
-            elif node["id"] == 121:
-                inputs["image"] = face_filename
-                inputs["upload"] = "image"
-            else:
-                inputs["image"] = face_filename
-                inputs["upload"] = "image"
-        elif ntype == "SaveImage":
-            inputs["filename_prefix"] = f"images/flux_swap_{flux_seed}"
-        elif ntype == "UNETLoader":
-            inputs["unet_name"] = wvals[0] if wvals else ""
-            inputs["weight_dtype"] = wvals[1] if len(wvals) > 1 else "default"
-        elif ntype == "CLIPLoader":
-            inputs["clip_name"] = wvals[0] if wvals else ""
-            inputs["type"] = wvals[1] if len(wvals) > 1 else "flux2"
-            inputs["device"] = wvals[2] if len(wvals) > 2 else "default"
-        elif ntype == "VAELoader":
-            inputs["vae_name"] = wvals[0] if wvals else ""
-        elif ntype == "LoraLoader" or ntype == "LoraLoaderModelOnly":
-            inputs["lora_name"] = wvals[0] if wvals else ""
-            inputs["strength_model"] = wvals[1] if len(wvals) > 1 else 1.0
-            if ntype == "LoraLoader":
-                inputs["strength_clip"] = wvals[2] if len(wvals) > 2 else 1.0
-        elif ntype == "CLIPTextEncode":
-            inputs["text"] = wvals[0] if wvals else ""
-        elif ntype == "FluxGuidance":
-            inputs["guidance"] = wvals[0] if wvals else 4.0
-        elif ntype == "LanPaint_KSampler":
-            inputs["seed"] = flux_seed
-            inputs["control_after_generate"] = wvals[1] if len(wvals) > 1 else "randomize"
-            inputs["steps"] = wvals[2] if len(wvals) > 2 else 4
-            inputs["cfg"] = wvals[3] if len(wvals) > 3 else 1.0
-            inputs["sampler_name"] = wvals[4] if len(wvals) > 4 else "euler"
-            inputs["scheduler"] = wvals[5] if len(wvals) > 5 else "simple"
-            inputs["denoise"] = wvals[6] if len(wvals) > 6 else 1.0
-            inputs["LanPaint_NumSteps"] = wvals[7] if len(wvals) > 7 else 2
-            inputs["LanPaint_PromptMode"] = wvals[8] if len(wvals) > 8 else "Image First"
-            inputs["Inpainting_mode"] = "🖼️ Image Inpainting"
-            inputs["LanPaint_Info"] = wvals[9] if len(wvals) > 9 else "LanPaint KSampler"
-        elif ntype == "ImageScaleToTotalPixels":
-            inputs["upscale_method"] = wvals[0] if wvals else "lanczos"
-            inputs["megapixels"] = megapixels
-            inputs["resolution_steps"] = wvals[2] if len(wvals) > 2 else 1
-        elif ntype == "ResizeImageMaskNode":
-            inputs["resize_type"] = wvals[0] if wvals else "scale dimensions"
-            inputs["width"] = wvals[1] if len(wvals) > 1 else 512
-            inputs["height"] = wvals[2] if len(wvals) > 2 else 512
-            inputs["crop"] = wvals[3] if len(wvals) > 3 else "center"
-            inputs["scale_method"] = wvals[4] if len(wvals) > 4 else "bicubic"
-            inputs["resize_type.width"] = wvals[1] if len(wvals) > 1 else 512
-            inputs["resize_type.height"] = wvals[2] if len(wvals) > 2 else 512
-            inputs["resize_type.crop"] = wvals[3] if len(wvals) > 3 else "center"
-            inputs["resize_type.scale_method"] = wvals[4] if len(wvals) > 4 else "bicubic"
-        elif ntype == "FloatConstant":
-            inputs["value"] = wvals[0] if wvals else 2.0
-        elif "EmptyFlux2Latent" in ntype or "EmptyLatent" in ntype:
-            ar_w, ar_h = FLUX_ASPECT_RATIOS.get(aspect_ratio, (768, 1360))
-            inputs["width"] = ar_w
-            inputs["height"] = ar_h
-            inputs["batch_size"] = wvals[2] if len(wvals) > 2 else 1
-        elif ntype == "ComfySwitchNode":
-            inputs["switch"] = wvals[0] if wvals else True
-        flux_prompt[nid] = {"class_type": ntype, "inputs": inputs}
+    # Build FLUX face swap workflow (hardcoded, no JSON parsing)
+    flux_workflow = get_flux_face_swap_workflow(target_filename, face_filename, flux_seed)
 
     # LTX quality preset
     if model == "ltx":
         if quality == "fast" and steps == 20:
-            steps, cfg_val, use_lora = 8, 1.0, True
+            anim_steps, cfg_val, use_lora = 8, 1.0, True
         elif quality == "high" and steps == 20:
-            steps, cfg_val, use_lora = 30, 1.0, False
+            anim_steps, cfg_val, use_lora = 30, 1.0, False
         else:
-            cfg_val, use_lora = cfg, steps <= 25
+            anim_steps, cfg_val, use_lora = steps, cfg, steps <= 25
     else:
+        anim_steps = steps
         cfg_val = cfg if cfg != 1.5 else 6.0
         use_lora = True
 
@@ -1594,7 +1402,7 @@ async def flux_face_swap_animate(
                 "6": {"class_type": "LoadWanVideoT5TextEncoder", "inputs": {"model_name": "umt5-xxl-enc-bf16.safetensors", "precision": "bf16", "load_device": "offload_device", "quantization": "disabled"}},
                 "7": {"class_type": "WanVideoTextEncode", "inputs": {"positive_prompt": prompt, "negative_prompt": negative_prompt, "t5": ["6", 0], "force_offload": True}},
                 "8": {"class_type": "WanVideoImageToVideoEncode", "inputs": {"width": width, "height": height, "num_frames": num_frames, "noise_aug_strength": 0.0, "start_latent_strength": 1.0, "end_latent_strength": 1.0, "force_offload": True, "vae": ["5", 0], "start_image": ["1", 0]}},
-                "9": {"class_type": "WanVideoSampler", "inputs": {"model": ["4", 0], "image_embeds": ["8", 0], "text_embeds": ["7", 0], "steps": steps, "cfg": cfg_val, "shift": 5.0, "seed": seed, "force_offload": True, "scheduler": "unipc", "riflex_freq_index": 0}},
+                "9": {"class_type": "WanVideoSampler", "inputs": {"model": ["4", 0], "image_embeds": ["8", 0], "text_embeds": ["7", 0], "steps": anim_steps, "cfg": cfg_val, "shift": 5.0, "seed": seed, "force_offload": True, "scheduler": "unipc", "riflex_freq_index": 0}},
                 "10": {"class_type": "WanVideoDecode", "inputs": {"vae": ["5", 0], "samples": ["9", 0], "enable_vae_tiling": False, "tile_x": 272, "tile_y": 272, "tile_stride_x": 144, "tile_stride_y": 128}},
                 "11": {"class_type": "VHS_VideoCombine", "inputs": {"images": ["10", 0], "frame_rate": 24, "loop_count": 0, "filename_prefix": f"video/flux_anim_wan_{seed}", "format": "video/h264-mp4", "pingpong": False, "save_output": True}}
             }
@@ -1613,7 +1421,7 @@ async def flux_face_swap_animate(
                 "10": {"class_type": "LTXVConcatAVLatent", "inputs": {"video_latent": ["8", 2], "audio_latent": ["9", 0]}},
                 "12": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
                 "13": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler_cfg_pp"}},
-                "14": {"class_type": "LTXVScheduler", "inputs": {"steps": steps, "max_shift": 2.05, "base_shift": 0.95, "stretch": True, "terminal": 0.1, "latent": ["10", 0]}},
+                "14": {"class_type": "LTXVScheduler", "inputs": {"steps": anim_steps, "max_shift": 2.05, "base_shift": 0.95, "stretch": True, "terminal": 0.1, "latent": ["10", 0]}},
                 "15": {"class_type": "CFGGuider", "inputs": {"cfg": cfg_val, "model": ["4", 0], "positive": ["8", 0], "negative": ["8", 1]}},
                 "16": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["12", 0], "guider": ["15", 0], "sampler": ["13", 0], "sigmas": ["14", 0], "latent_image": ["10", 0]}},
                 "17": {"class_type": "LTXVSeparateAVLatent", "inputs": {"av_latent": ["16", 0]}},
@@ -1625,7 +1433,7 @@ async def flux_face_swap_animate(
 
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
-    background_tasks.add_task(run_flux_then_animate, job_id, flux_prompt, make_animate_workflow, target_path, face_path)
+    background_tasks.add_task(run_flux_then_animate, job_id, flux_workflow, make_animate_workflow, target_path, face_path)
 
     return {
         "job_id": job_id,
@@ -1633,5 +1441,5 @@ async def flux_face_swap_animate(
         "model": f"flux2-klein-9b+{model}",
         "type": "video",
         "created_at": jobs[job_id]["created_at"],
-        "poll_url": f"https://t6pgge1y1kl2qt-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
     }
