@@ -35,7 +35,7 @@ async def enhance_prompt_with_ollama(prompt: str, media_type: str = "image") -> 
 app = FastAPI(title="LTX 2.3 Video API")
 COMFYUI_URL = "http://127.0.0.1:8188"
 OUTPUT_DIR = Path("/workspace/ComfyUI/output")
-PUBLIC_BASE_URL = "https://8mj50saxmbkhdz-8888.proxy.runpod.net"
+PUBLIC_BASE_URL = "https://zz7hhzb25lmfm4-8888.proxy.runpod.net"
 
 # In-memory job store
 jobs = {}
@@ -137,9 +137,9 @@ async def run_job(job_id: str, workflow: dict, image_path: str = None):
                         # Determine if image or video based on extension
                         ext = Path(filename).suffix.lower()
                         if ext in [".png", ".jpg", ".jpeg", ".webp"]:
-                            url = f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/image/{filename}"
+                            url = f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/image/{filename}"
                         else:
-                            url = f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/video/{filename}"
+                            url = f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/video/{filename}"
                         completed_at = datetime.now(timezone.utc)
                         created_at_str = jobs[job_id].get("created_at")
                         duration_seconds = None
@@ -188,7 +188,7 @@ async def text_to_video(req: T2VRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow)
-    return {"job_id": job_id, "status": "queued", "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"}
+    return {"job_id": job_id, "status": "queued", "poll_url": f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/status/{job_id}"}
 
 @app.post("/i2v/upload")
 async def image_to_video(
@@ -209,7 +209,7 @@ async def image_to_video(
     job_id = str(uuid.uuid4())
     jobs[job_id] = {"status": "queued", "created_at": datetime.now(timezone.utc).isoformat()}
     background_tasks.add_task(run_job, job_id, workflow, image_path)
-    return {"job_id": job_id, "status": "queued", "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"}
+    return {"job_id": job_id, "status": "queued", "poll_url": f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/status/{job_id}"}
 
 @app.get("/queue")
 async def get_queue():
@@ -336,7 +336,7 @@ async def retry_job(job_id: str, background_tasks: BackgroundTasks):
         "new_job_id": new_job_id,
         "original_job_id": job_id,
         "status": "queued",
-        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{new_job_id}"
+        "poll_url": f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/status/{new_job_id}"
     }
 
 @app.get("/videos")
@@ -352,7 +352,7 @@ async def list_videos():
         videos.append({
             "filename": f.name,
             "size_mb": round(stat.st_size / 1024 / 1024, 2),
-            "url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/video/{f.name}",
+            "url": f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/video/{f.name}",
             "created_at": stat.st_mtime
         })
     return {"total": len(videos), "videos": videos}
@@ -639,7 +639,7 @@ async def face_swap(
         "job_id": job_id,
         "status": "queued",
         "type": "image",
-        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/status/{job_id}"
     }
 
 
@@ -951,7 +951,7 @@ async def head_swap(
         "status": "queued",
         "type": "image",
         "created_at": jobs[job_id]["created_at"],
-        "poll_url": f"https://8mj50saxmbkhdz-7860.proxy.runpod.net/status/{job_id}"
+        "poll_url": f"https://zz7hhzb25lmfm4-7860.proxy.runpod.net/status/{job_id}"
     }
 
 
