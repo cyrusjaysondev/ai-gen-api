@@ -389,8 +389,8 @@ wget -q \
   "https://raw.githubusercontent.com/cyrusjaysondev/ai-gen-api/main/api/main.py"
 
 if [ ! -f "/workspace/api/main.py" ] || [ ! -s "/workspace/api/main.py" ]; then
-  log "ERROR: Failed to download main.py!"
-  exit 1
+  log "WARNING: Failed to download main.py from GitHub. Will retry on next restart."
+  log "You can manually download it or paste it into /workspace/api/main.py"
 fi
 log "  main.py downloaded"
 
@@ -475,8 +475,8 @@ until curl -s http://localhost:8188/system_stats > /dev/null 2>&1; do
 done
 log "ComfyUI ready after ${WAITED}s! Starting API..."
 
-cd /workspace/api
-OLLAMA_MODELS="/workspace/ollama_models" python3 -m uvicorn main:app --host 0.0.0.0 --port 7860 >> /workspace/api.log 2>&1
+cd /workspace/api || exit 1
+OLLAMA_MODELS="/workspace/ollama_models" /opt/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 7860 >> /workspace/api.log 2>&1
 STARTEOF
 
 chmod +x /workspace/start_api.sh
